@@ -1,0 +1,1 @@
+Tested PostgreSQL Chinook Database - Version 1.4.5 database on PostgreSQL 18 using PgAdmin 4
