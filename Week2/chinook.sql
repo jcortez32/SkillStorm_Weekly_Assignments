@@ -63,3 +63,15 @@ GROUP BY month
 ORDER BY month
 
 -- Question 10
+SELECT DISTINCT concat(c.first_name, ' ', c.last_name) as full_name, c.email
+FROM customer as c
+LEFT JOIN invoice as i
+ON c.customer_id = i.customer_id
+JOIN invoice_line as il
+ON i.invoice_id = il.invoice_id 
+JOIN track as t
+ON t.track_id = il.track_id
+WHERE t.genre_id != 1
+Order by full_name
+
+-- QUESTION 11
