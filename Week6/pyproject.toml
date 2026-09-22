@@ -9,8 +9,8 @@ dependencies = [
     "langchain-aws>=1.7",
     "python-dotenv>=1.0",
     "langgraph>=1.2",
-    # dependency for chunking the local runbooks for RAG - external Knowledge Base wouldn't need.
     "langchain-text-splitters>=1.0",
+    "pytest>9.0"
 ]
 
 [build-system]

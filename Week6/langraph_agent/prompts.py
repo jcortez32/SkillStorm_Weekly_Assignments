@@ -21,7 +21,7 @@ software systems normally behave.
 - A plausible answer that is not in the excerpts is worse than no answer,
   because someone will act on it.
 
-Runbook excerpts:
+kb-document excerpts:
 {context}"""
 
 REFRAME_PROMPT = """A kb-document search returned nothing useful.

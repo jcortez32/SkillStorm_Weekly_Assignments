@@ -1,13 +1,13 @@
 from .chains import build_triage_chain
 from .state import IncidentState 
-from rag import format_query
+from .rag import format_query
 from typing import cast
-from retriever import get_retriever
+from .retriever import get_retriever
 from langchain_core.messages import HumanMessage, SystemMessage
-from schemas import Diagnosis
-from llm import get_chat_model
-from rag import format_docs, enforce_grounding
-from prompts import DIAGNOSIS_PROMPT
+from .schemas import Diagnosis
+from .llm import get_chat_model
+from .rag import format_docs, enforce_grounding
+from .prompts import DIAGNOSIS_PROMPT, REFRAME_PROMPT
 
 
 def triage_node(state: IncidentState) -> dict:
@@ -28,11 +28,13 @@ def retrieve_node(state: IncidentState) -> dict:
     query = state.get("search_query") or state["ticket"]
     docs = get_retriever(k=4).invoke(query)
     attempts = state.get("retrieval_attempts", 0) + 1
+    formatted_context = format_docs(docs)
     return {
         "retrieval_attempts": attempts,
+        "context": formatted_context,
         "evidence": [f"retrieved {len(docs)} excerpt(s) for {query!r}"],
         "messages": [
-            HumanMessage(f"Runbook excerpts for {query!r}:\n\n{format_docs(docs)}")
+            HumanMessage(f"kb-document excerpts for {query!r}:\n\n{format_docs(docs)}")
         ],
         "trace": [f"retrieve#{attempts}"],
     }
@@ -41,16 +43,19 @@ def retrieve_node(state: IncidentState) -> dict:
 def diagnose_node(state: IncidentState) -> dict:
     """Produce a Diagnosis, then verify its citations before storing it."""
 
-    convo = list(state["messages"]) + [
-        HumanMessage(
-            "Using ONLY the runbook excerpts above, diagnose this alert."
-        )
-    ]
+    formatted_system_prompt = DIAGNOSIS_PROMPT.format(
+        context=state.get("context", "No runbook excerpts found.")
+    )
+    messages = [SystemMessage(formatted_system_prompt)] + list(state.get("messages", [])) 
+
+    messages.append(
+        HumanMessage("Using ONLY the kb-document excerpts provided in your instructions, diagnose this ticket.")
+    )  
     raw: Diagnosis = cast(
         "Diagnosis",
         get_chat_model()
         .with_structured_output(Diagnosis)
-        .invoke([SystemMessage(DIAGNOSIS_PROMPT)] + convo)
+        .invoke(messages)
     )
 
     diagnosis = enforce_grounding(raw)
@@ -68,10 +73,10 @@ def route_after_diagnose(state: IncidentState) -> str:
 
     diagnosis = state.get("diagnosis")
     if diagnosis and diagnosis.grounded:
-        return "plan_remediation"
+        return "response"
     if state.get("retrieval_attempts", 0) < MAX_RETRIEVAL_ATTEMPTS:
         return "reframe"
-    return "escalate"
+    return "response"
 
 
 def reframe_node(state: IncidentState) -> dict:
@@ -93,9 +98,27 @@ def reframe_node(state: IncidentState) -> dict:
     )
     # Fall back to the raw service name rather than looping on an empty string.
     if not new_query:
-        new_query = triage.service if triage else state["alert"][:80]
+        new_query = triage.service if triage else state["ticket"][:80]
     return {
         "search_query": new_query,
         "evidence": [f"reframed query -> {new_query!r}"],
         "trace": ["reframe"],
     }
+
+
+def response_node(state: IncidentState) -> dict:
+    """ Respond to client -- If documents do not support an answer, respond with I don't know."""
+    diagnosis = state.get("diagnosis")
+    if diagnosis and diagnosis.grounded:
+        response_text = f"Action: {diagnosis.recommended_action}\nSources: {', '.join(diagnosis.sources)}"
+    else:
+        response_text = "The provided documents do not cover this issue."
+    return {
+            "outcome": response_text,
+            "trace": ["response"]
+        }
+def close_node(state: IncidentState) -> dict:
+    """Final node. Make sure every path ends with a stated outcome."""
+
+    outcome = state.get("outcome") or "CLOSED with no action"
+    return {"outcome": outcome, "trace": ["close"]}

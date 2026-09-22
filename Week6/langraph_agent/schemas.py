@@ -55,7 +55,7 @@ class Diagnosis(BaseModel):
     requires_approval: bool = Field(
         default=False,
         description=(
-            "True if the runbooks say the recommended action needs a second "
+            "True if the documents say the recommended action needs a second "
             "person's sign-off before it may be carried out."
         ),
     )

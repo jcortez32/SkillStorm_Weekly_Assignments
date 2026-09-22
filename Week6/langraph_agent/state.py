@@ -21,12 +21,8 @@ class IncidentState(TypedDict):
     search_query: NotRequired[str]
     retrieval_attempts: int
     diagnosis: NotRequired[Diagnosis | None]
+    context: NotRequired[str]
 
-    # # plan
-    # plan: NotRequired[RemediationPlan | None] 
-    # approval: NotRequired[str | None]
-    # approval_note: NotRequired[str | None]
-
-    # # output
-    # status_update: NotRequired[StatusUpdate | None]
-    # outcome: NotRequired[str | None]
+    #output 
+    response: NotRequired[str]
+    outcome: NotRequired[str | None]

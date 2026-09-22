@@ -44,7 +44,6 @@ def enforce_grounding(diagnosis: Diagnosis) -> Diagnosis:
             update={
                 "grounded": False, 
                 "sources": [],
-                "severity": None,
                 "recommended_action": (
                     "Escalate to human. No sources found to answer question. ",
                     f"Model returned with this action plan: {diagnosis.recommended_action}"
